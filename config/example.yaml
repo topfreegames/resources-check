@@ -3,11 +3,12 @@ app:
     interval: 1h
   ignored:
     deployment:
-      - namespace: foo1
-      - name: bar1
+      namespaceName1:
+        - deploymentName1
+        - deploymentName2
     statefulset:
-      - namespace: foo2
-      - name: bar2
+      namespaceName2:
+        - statefulsetName1
     daemonset:
-      - namespace: foo3
-      - name: bar3
+      namespaceName1:
+        - daemonsetName1

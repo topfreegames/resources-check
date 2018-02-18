@@ -1,14 +1,13 @@
 package model
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"github.com/topfreegames/resources-check/extension"
-	"k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -19,6 +18,7 @@ type Worker struct {
 	kubernetesClient kubernetes.Interface
 	logger           logrus.FieldLogger
 	interval         time.Duration
+	monitors         []MonitorService
 }
 
 // NewWorker connects with Kubernetes API
@@ -26,6 +26,7 @@ type Worker struct {
 func NewWorker(
 	config *viper.Viper,
 	kubernetesClientOrNil kubernetes.Interface,
+	monitorsOrNil []MonitorService,
 	logger logrus.FieldLogger,
 	inCluster bool,
 	kubeconfigPath string,
@@ -39,6 +40,10 @@ func NewWorker(
 	worker.configureWorker()
 	err := worker.configureKubernetesClient(
 		kubernetesClientOrNil, inCluster, kubeconfigPath)
+	if err != nil {
+		return nil, err
+	}
+	err = worker.configureMonitors(monitorsOrNil)
 	if err != nil {
 		return nil, err
 	}
@@ -71,6 +76,21 @@ func (w *Worker) configureKubernetesClient(
 	return nil
 }
 
+func (w *Worker) configureMonitors(
+	monitorsOrNil []MonitorService,
+) error {
+	if monitorsOrNil != nil {
+		w.monitors = monitorsOrNil
+		return nil
+	}
+
+	w.monitors = []MonitorService{
+		NewDatadogMonitor(),
+	}
+
+	return nil
+}
+
 // Start starts check every interval
 func (w *Worker) Start() {
 	ticker := time.NewTicker(w.interval)
@@ -85,7 +105,13 @@ func (w *Worker) Start() {
 				w.logger.WithError(err).Error("error listing namespaces")
 			}
 
-			fmt.Printf("%#v", namespaces)
+			for _, namespace := range namespaces {
+				failedControllers, err := w.checkNamespace(namespace)
+				if err != nil {
+					w.logger.WithError(err).Error("error listing namespaces")
+				}
+				w.sendToMonitors(failedControllers)
+			}
 		}
 	}
 }
@@ -104,4 +130,99 @@ func (w *Worker) listNamespaces() ([]string, error) {
 	}
 
 	return namespaces, nil
+}
+
+func (w *Worker) checkNamespace(
+	namespace string,
+) ([]string, error) {
+	failedDeployments, err := w.checkDeployment(namespace)
+	if err != nil {
+		return nil, err
+	}
+
+	failedStatefulsets, err := w.checkStatefulset(namespace)
+	if err != nil {
+		return nil, err
+	}
+
+	failedDaemonsets, err := w.checkDaemonset(namespace)
+	if err != nil {
+		return nil, err
+	}
+
+	failedControllers := failedDeployments
+	failedControllers = append(failedControllers, failedStatefulsets...)
+	failedControllers = append(failedControllers, failedDaemonsets...)
+
+	return failedControllers, nil
+}
+
+func (w *Worker) checkDeployment(
+	namespace string,
+) ([]string, error) {
+	listOptions := v1.ListOptions{}
+	deployments, err := w.kubernetesClient.
+		Extensions().
+		Deployments(namespace).
+		List(listOptions)
+	if err != nil {
+		return nil, err
+	}
+	failedDeployments := []string{}
+	for _, deployment := range deployments.Items {
+		if !isIgnored(Deployment, &deployment, w.config) && !hasResources(deployment.Spec.Template.Spec.Containers) {
+			failedDeployments = append(failedDeployments, name(&deployment))
+		}
+	}
+	return failedDeployments, nil
+}
+
+func (w *Worker) checkStatefulset(
+	namespace string,
+) ([]string, error) {
+	listOptions := v1.ListOptions{}
+	statefulsets, err := w.kubernetesClient.
+		Apps().
+		StatefulSets(namespace).
+		List(listOptions)
+	if err != nil {
+		return nil, err
+	}
+	failedStatefulsets := []string{}
+	for _, statefulset := range statefulsets.Items {
+		if !isIgnored(Statefulset, &statefulset, w.config) && !hasResources(statefulset.Spec.Template.Spec.Containers) {
+			failedStatefulsets = append(failedStatefulsets, name(&statefulset))
+		}
+	}
+	return failedStatefulsets, nil
+}
+
+func (w *Worker) checkDaemonset(
+	namespace string,
+) ([]string, error) {
+	listOptions := v1.ListOptions{}
+	daemonsets, err := w.kubernetesClient.
+		Extensions().
+		DaemonSets(namespace).
+		List(listOptions)
+	if err != nil {
+		return nil, err
+	}
+	failedDaemonsets := []string{}
+	for _, daemonset := range daemonsets.Items {
+		if !isIgnored(Daemonset, &daemonset, w.config) && !hasResources(daemonset.Spec.Template.Spec.Containers) {
+			failedDaemonsets = append(failedDaemonsets, name(&daemonset))
+		}
+	}
+	return failedDaemonsets, nil
+}
+
+func (w *Worker) sendToMonitors(controllers []string) {
+	for _, monitor := range w.monitors {
+		err := monitor.Send(controllers...)
+		if err != nil {
+			w.logger.WithError(err).
+				Errorf("failed to send to monitor service: %s", monitor.Name())
+		}
+	}
 }

@@ -43,9 +43,11 @@ var startCmd = &cobra.Command{
 		log.Info("starting resources-check worker")
 
 		var kubernetesClient kubernetes.Interface
+		var monitors []model.MonitorService
 		worker, err := model.NewWorker(
 			config,
 			kubernetesClient,
+			monitors,
 			log,
 			incluster,
 			kubeconfig,
