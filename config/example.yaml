@@ -1,0 +1,13 @@
+app:
+  worker:
+    interval: 1h
+  ignored:
+    deployment:
+      - namespace: foo1
+      - name: bar1
+    statefulset:
+      - namespace: foo2
+      - name: bar2
+    daemonset:
+      - namespace: foo3
+      - name: bar3
