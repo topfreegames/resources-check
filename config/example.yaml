@@ -1,17 +1,14 @@
 app:
   worker:
     interval: 1h
-  ignored:
-    deployment:
-      namespaceName1:
-        - deploymentName1
-        - deploymentName2
-    statefulset:
-      namespaceName2:
-        - statefulsetName1
-    daemonset:
-      namespaceName1:
-        - daemonsetName1
+excluding:
+  deployment:
+    namespaceName1/deploymentName1: true
+    namespaceName1/deploymentName2: true
+  statefulset:
+    namespaceName2/statefulsetName1: true
+  daemonset:
+    namespaceName1/daemonsetName1: true
 monitors:
   datadog:
     host: localhost:8125

@@ -89,7 +89,10 @@ func (w *Worker) configureMonitors(
 	if err != nil {
 		return err
 	}
-	w.monitors = []MonitorService{ddMonitor}
+	w.monitors = []MonitorService{
+		ddMonitor,
+		NewLogMonitor(w.logger),
+	}
 	return nil
 }
 
@@ -171,6 +174,10 @@ func (w *Worker) checkNamespace(
 }
 
 func (w *Worker) sendToMonitors(controllers []string) {
+	if len(controllers) == 0 {
+		return
+	}
+
 	for _, monitor := range w.monitors {
 		err := monitor.Send(controllers...)
 		if err != nil {

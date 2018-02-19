@@ -35,14 +35,8 @@ func IsIgnored(
 	controller Controller,
 	config *viper.Viper,
 ) bool {
-	key := fmt.Sprintf("app.ignored.%s.%s", controllerType, controller.GetNamespace())
-	controllerNames := config.GetStringSlice(key)
-	for _, controllerName := range controllerNames {
-		if controllerName == controller.GetName() {
-			return true
-		}
-	}
-	return false
+	key := fmt.Sprintf("excluding.%s.%s", controllerType, Name(controller))
+	return config.GetBool(key)
 }
 
 func hasCPUAndMemory(resource v1.ResourceList) bool {
