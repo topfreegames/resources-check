@@ -5,6 +5,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
+	"github.com/topfreegames/resources-check/controller"
 	"github.com/topfreegames/resources-check/extension"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -33,7 +34,7 @@ func NewWorker(
 ) (*Worker, error) {
 	worker := &Worker{
 		config: config,
-		logger: logger,
+		logger: logger.WithField("version", appVersion),
 	}
 
 	worker.loadConfigurationDefaults()
@@ -96,24 +97,32 @@ func (w *Worker) configureMonitors(
 func (w *Worker) Start() {
 	ticker := time.NewTicker(w.interval)
 	defer ticker.Stop()
+	w.check()
 
 	for {
 		select {
 		case <-ticker.C:
-			w.logger.Infof("[%s] Checking controllers", currentTime())
-			namespaces, err := w.listNamespaces()
-			if err != nil {
-				w.logger.WithError(err).Error("error listing namespaces")
-			}
-
-			for _, namespace := range namespaces {
-				failedControllers, err := w.checkNamespace(namespace)
-				if err != nil {
-					w.logger.WithError(err).Error("error listing namespaces")
-				}
-				w.sendToMonitors(failedControllers)
-			}
+			w.check()
 		}
+	}
+}
+
+func (w *Worker) check() {
+	w.logger.
+		WithFields(logrus.Fields{
+			"time": currentTime(),
+		}).Info("Checking controllers")
+	namespaces, err := w.listNamespaces()
+	if err != nil {
+		w.logger.WithError(err).Error("error listing namespaces")
+	}
+
+	for _, namespace := range namespaces {
+		failedControllers, err := w.checkNamespace(namespace)
+		if err != nil {
+			w.logger.WithError(err).Error("error listing namespaces")
+		}
+		w.sendToMonitors(failedControllers)
 	}
 }
 
@@ -136,17 +145,20 @@ func (w *Worker) listNamespaces() ([]string, error) {
 func (w *Worker) checkNamespace(
 	namespace string,
 ) ([]string, error) {
-	failedDeployments, err := w.checkDeployment(namespace)
+	failedDeployments, err := controller.CheckDeployments(
+		w.kubernetesClient, w.config, namespace)
 	if err != nil {
 		return nil, err
 	}
 
-	failedStatefulsets, err := w.checkStatefulset(namespace)
+	failedStatefulsets, err := controller.CheckStatefulset(
+		w.kubernetesClient, w.config, namespace)
 	if err != nil {
 		return nil, err
 	}
 
-	failedDaemonsets, err := w.checkDaemonset(namespace)
+	failedDaemonsets, err := controller.CheckDaemonset(
+		w.kubernetesClient, w.config, namespace)
 	if err != nil {
 		return nil, err
 	}
@@ -156,66 +168,6 @@ func (w *Worker) checkNamespace(
 	failedControllers = append(failedControllers, failedDaemonsets...)
 
 	return failedControllers, nil
-}
-
-func (w *Worker) checkDeployment(
-	namespace string,
-) ([]string, error) {
-	listOptions := v1.ListOptions{}
-	deployments, err := w.kubernetesClient.
-		Extensions().
-		Deployments(namespace).
-		List(listOptions)
-	if err != nil {
-		return nil, err
-	}
-	failedDeployments := []string{}
-	for _, deployment := range deployments.Items {
-		if !isIgnored(Deployment, &deployment, w.config) && !hasResources(deployment.Spec.Template.Spec.Containers) {
-			failedDeployments = append(failedDeployments, name(&deployment))
-		}
-	}
-	return failedDeployments, nil
-}
-
-func (w *Worker) checkStatefulset(
-	namespace string,
-) ([]string, error) {
-	listOptions := v1.ListOptions{}
-	statefulsets, err := w.kubernetesClient.
-		Apps().
-		StatefulSets(namespace).
-		List(listOptions)
-	if err != nil {
-		return nil, err
-	}
-	failedStatefulsets := []string{}
-	for _, statefulset := range statefulsets.Items {
-		if !isIgnored(Statefulset, &statefulset, w.config) && !hasResources(statefulset.Spec.Template.Spec.Containers) {
-			failedStatefulsets = append(failedStatefulsets, name(&statefulset))
-		}
-	}
-	return failedStatefulsets, nil
-}
-
-func (w *Worker) checkDaemonset(
-	namespace string,
-) ([]string, error) {
-	listOptions := v1.ListOptions{}
-	daemonsets, err := w.kubernetesClient.
-		Extensions().
-		DaemonSets(namespace).
-		List(listOptions)
-	if err != nil {
-		return nil, err
-	}
-	failedDaemonsets := []string{}
-	for _, daemonset := range daemonsets.Items {
-		if !isIgnored(Daemonset, &daemonset, w.config) && !hasResources(daemonset.Spec.Template.Spec.Containers) {
-			failedDaemonsets = append(failedDaemonsets, name(&daemonset))
-		}
-	}
-	return failedDaemonsets, nil
 }
 
 func (w *Worker) sendToMonitors(controllers []string) {

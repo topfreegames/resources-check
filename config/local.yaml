@@ -1,6 +1,6 @@
 app:
   worker:
-    interval: 1s
+    interval: 30s
 monitors:
   datadog:
     host: localhost:8125
