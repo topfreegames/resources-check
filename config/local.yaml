@@ -1,3 +1,8 @@
 app:
   worker:
     interval: 1s
+monitors:
+  datadog:
+    host: localhost:8125
+    prefix: resources-check.
+    region: region

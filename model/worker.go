@@ -84,10 +84,11 @@ func (w *Worker) configureMonitors(
 		return nil
 	}
 
-	w.monitors = []MonitorService{
-		NewDatadogMonitor(),
+	ddMonitor, err := NewDatadogMonitor(w.config)
+	if err != nil {
+		return err
 	}
-
+	w.monitors = []MonitorService{ddMonitor}
 	return nil
 }
 

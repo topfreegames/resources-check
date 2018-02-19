@@ -12,3 +12,7 @@ app:
     daemonset:
       namespaceName1:
         - daemonsetName1
+monitors:
+  datadog:
+    host: localhost:8125
+    prefix: resources-check
