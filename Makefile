@@ -7,7 +7,18 @@ mocks:
 	@mockgen -source=model/interface.go -destination=model/mocks.go -package=model
 	@echo 'created mocks in ./model'
 
-test: unit
+merge-profiles:
+	@mkdir -p _build
+	@gocovmerge _build/*.out > _build/coverage-all.out
+
+test-coverage-func coverage-func: merge-profiles
+	@echo
+	@echo "\033[1;34m=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\033[0m"
+	@echo "\033[1;34mFunctions NOT COVERED by Tests\033[0m"
+	@echo "\033[1;34m=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\033[0m"
+	@go tool cover -func=_build/coverage-all.out | egrep -v "100.0[%]"
+
+test: unit test-coverage-func
 
 unit: unit-board clear-coverage-profiles unit-run gather-unit-profiles
 
