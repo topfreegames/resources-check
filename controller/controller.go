@@ -19,8 +19,7 @@ func Name(controller Controller) string {
 // request and limit setted
 func HasResources(containers []v1.Container) bool {
 	for _, container := range containers {
-		has := hasCPUAndMemory(container.Resources.Requests) &&
-			hasCPUAndMemory(container.Resources.Limits)
+		has := hasCPUAndMemory(container.Resources.Limits)
 		if !has {
 			return false
 		}

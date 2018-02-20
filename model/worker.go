@@ -20,6 +20,7 @@ type Worker struct {
 	logger           logrus.FieldLogger
 	interval         time.Duration
 	monitors         []MonitorService
+	Run              bool
 }
 
 // NewWorker connects with Kubernetes API
@@ -100,9 +101,11 @@ func (w *Worker) configureMonitors(
 func (w *Worker) Start() {
 	ticker := time.NewTicker(w.interval)
 	defer ticker.Stop()
+	w.Run = true
+
 	w.check()
 
-	for {
+	for w.Run {
 		select {
 		case <-ticker.C:
 			w.check()
@@ -125,7 +128,7 @@ func (w *Worker) check() {
 		if err != nil {
 			w.logger.WithError(err).Error("error listing namespaces")
 		}
-		w.sendToMonitors(failedControllers)
+		w.sendToMonitors(failedControllers...)
 	}
 }
 
@@ -173,7 +176,7 @@ func (w *Worker) checkNamespace(
 	return failedControllers, nil
 }
 
-func (w *Worker) sendToMonitors(controllers []string) {
+func (w *Worker) sendToMonitors(controllers ...string) {
 	if len(controllers) == 0 {
 		return
 	}

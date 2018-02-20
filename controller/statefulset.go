@@ -14,7 +14,7 @@ func CheckStatefulset(
 ) ([]string, error) {
 	listOptions := v1.ListOptions{}
 	statefulsets, err := kubernetesClient.
-		Apps().
+		AppsV1beta1().
 		StatefulSets(namespace).
 		List(listOptions)
 	if err != nil {

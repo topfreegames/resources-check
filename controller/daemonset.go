@@ -14,7 +14,7 @@ func CheckDaemonset(
 ) ([]string, error) {
 	listOptions := v1.ListOptions{}
 	daemonsets, err := kubernetesClient.
-		Extensions().
+		ExtensionsV1beta1().
 		DaemonSets(namespace).
 		List(listOptions)
 	if err != nil {

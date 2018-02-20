@@ -14,12 +14,13 @@ func CheckDeployments(
 ) ([]string, error) {
 	listOptions := v1.ListOptions{}
 	deployments, err := kubernetesClient.
-		Extensions().
+		AppsV1beta1().
 		Deployments(namespace).
 		List(listOptions)
 	if err != nil {
 		return nil, err
 	}
+
 	failedDeployments := []string{}
 	for _, deployment := range deployments.Items {
 		isIgnored := IsIgnored(Deployment, &deployment, config)
