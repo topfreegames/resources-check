@@ -56,6 +56,8 @@ var startCmd = &cobra.Command{
 			log.Fatal(err)
 		}
 
+		worker.ConfigureHealthcheck()
+
 		worker.Start()
 	},
 }

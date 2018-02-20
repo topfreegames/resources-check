@@ -54,7 +54,6 @@ func NewWorker(
 	}
 
 	worker.configureIgnoredNamespaces()
-	worker.configureHealthcheck()
 
 	return worker, nil
 }
@@ -63,7 +62,8 @@ func (w *Worker) loadConfigurationDefaults() {
 	w.config.SetDefault("app.worker.interval", "1h")
 }
 
-func (w *Worker) configureHealthcheck() {
+// ConfigureHealthcheck starts a server on 9090 that responds 200 on GET /healthcheck
+func (w *Worker) ConfigureHealthcheck() {
 	http.HandleFunc("/healthcheck", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
 	})
