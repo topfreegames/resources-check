@@ -3,6 +3,9 @@ TEST_PACKAGES=`find . -type f -name "*.go" ! \( -path "*vendor*" \) | sed -En "s
 start:
 	@go run main.go start
 
+build:
+	@docker build -t local/rcheck:latest .
+
 mocks:
 	@mockgen -source=model/interface.go -destination=model/mocks.go -package=model
 	@echo 'created mocks in ./model'
