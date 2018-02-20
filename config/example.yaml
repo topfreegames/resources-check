@@ -2,15 +2,16 @@ app:
   worker:
     interval: 1h
 excluding:
+  namespaces: namespaceName1,namespaceName2
   deployment:
-    namespaceName1:
+    namespaceName3:
       deploymentName1: true
       deploymentName2: true
   statefulset:
-    namespaceName2:
+    namespaceName4:
       statefulsetName1: true
   daemonset:
-    namespaceName1:
+    namespaceName3:
       daemonsetName1: true
 monitors:
   datadog:

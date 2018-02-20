@@ -2,6 +2,7 @@ package model
 
 import (
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -16,12 +17,13 @@ import (
 // Worker loops every interval and checks limits and
 // requests from every Kubernetes controller
 type Worker struct {
-	config           *viper.Viper
-	kubernetesClient kubernetes.Interface
-	logger           logrus.FieldLogger
-	interval         time.Duration
-	monitors         []MonitorService
-	Run              bool
+	config            *viper.Viper
+	kubernetesClient  kubernetes.Interface
+	logger            logrus.FieldLogger
+	interval          time.Duration
+	monitors          []MonitorService
+	ignoredNamespaces map[string]struct{}
+	Run               bool
 }
 
 // NewWorker connects with Kubernetes API
@@ -51,6 +53,7 @@ func NewWorker(
 		return nil, err
 	}
 
+	worker.configureIgnoredNamespaces()
 	worker.configureHealthcheck()
 
 	return worker, nil
@@ -66,6 +69,16 @@ func (w *Worker) configureHealthcheck() {
 	})
 	go http.ListenAndServe(":9090", nil)
 	w.logger.Info("healthcheck on GET /healthcheck and port 9090")
+}
+
+func (w *Worker) configureIgnoredNamespaces() {
+	ignoredNamespaces := w.config.GetString("excluding.namespaces")
+	splitedIgnored := strings.Split(ignoredNamespaces, ",")
+
+	w.ignoredNamespaces = map[string]struct{}{}
+	for _, namespace := range splitedIgnored {
+		w.ignoredNamespaces[namespace] = struct{}{}
+	}
 }
 
 func (w *Worker) configureWorker() {
@@ -135,11 +148,13 @@ func (w *Worker) check() {
 	}
 
 	for _, namespace := range namespaces {
-		failedControllers, err := w.checkNamespace(namespace)
-		if err != nil {
-			w.logger.WithError(err).Error("error listing namespaces")
+		if _, ok := w.ignoredNamespaces[namespace]; !ok {
+			failedControllers, err := w.checkNamespace(namespace)
+			if err != nil {
+				w.logger.WithError(err).Error("error listing namespaces")
+			}
+			w.sendToMonitors(failedControllers...)
 		}
-		w.sendToMonitors(failedControllers...)
 	}
 }
 
