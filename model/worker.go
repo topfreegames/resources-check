@@ -1,6 +1,7 @@
 package model
 
 import (
+	"net/http"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -50,11 +51,21 @@ func NewWorker(
 		return nil, err
 	}
 
+	worker.configureHealthcheck()
+
 	return worker, nil
 }
 
 func (w *Worker) loadConfigurationDefaults() {
 	w.config.SetDefault("app.worker.interval", "1h")
+}
+
+func (w *Worker) configureHealthcheck() {
+	http.HandleFunc("/healthcheck", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+	})
+	go http.ListenAndServe(":9090", nil)
+	w.logger.Info("healthcheck on GET /healthcheck and port 9090")
 }
 
 func (w *Worker) configureWorker() {

@@ -3,12 +3,15 @@ app:
     interval: 1h
 excluding:
   deployment:
-    namespaceName1/deploymentName1: true
-    namespaceName1/deploymentName2: true
+    namespaceName1:
+      deploymentName1: true
+      deploymentName2: true
   statefulset:
-    namespaceName2/statefulsetName1: true
+    namespaceName2:
+      statefulsetName1: true
   daemonset:
-    namespaceName1/daemonsetName1: true
+    namespaceName1:
+      daemonsetName1: true
 monitors:
   datadog:
     host: localhost:8125

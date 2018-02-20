@@ -34,7 +34,7 @@ func IsIgnored(
 	controller Controller,
 	config *viper.Viper,
 ) bool {
-	key := fmt.Sprintf("excluding.%s.%s", controllerType, Name(controller))
+	key := fmt.Sprintf("excluding.%s.%s.%s", controllerType, controller.GetNamespace(), controller.GetName())
 	return config.GetBool(key)
 }
 
