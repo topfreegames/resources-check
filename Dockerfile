@@ -11,4 +11,4 @@ RUN go build -o resources-check main.go && \
     cp config/local.yaml /etc/resources-check.yaml && \
     rm -r $GOPATH/src/github.com/topfreegames/resources-check
 
-CMD ["/bin/resources-check", "--json", "--incluster", "-c", "/etc/resources-check.yaml", "start"]
+CMD ["/bin/resources-check", "start", "--json", "--incluster", "-c", "/etc/resources-check.yaml"]

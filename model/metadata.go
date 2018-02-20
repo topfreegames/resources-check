@@ -1,3 +1,3 @@
 package model
 
-var appVersion = "v0.1.0"
+var appVersion = "v0.1.1"

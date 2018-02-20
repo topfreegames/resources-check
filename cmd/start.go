@@ -61,7 +61,6 @@ var startCmd = &cobra.Command{
 }
 
 func init() {
-	RootCmd.AddCommand(startCmd)
 	startCmd.Flags().BoolVar(
 		&incluster, "incluster", false, "incluster mode (for running on kubernetes)")
 	startCmd.Flags().StringVar(
@@ -74,4 +73,5 @@ func init() {
 		&kubeconfig, "kubeconfig",
 		fmt.Sprintf("%s/.kube/config", home),
 		"path to the kubeconfig file (not needed if using --incluster)")
+	RootCmd.AddCommand(startCmd)
 }
