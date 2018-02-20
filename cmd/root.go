@@ -75,6 +75,7 @@ func initConfig() {
 	config.SetEnvPrefix("rcheck")
 	config.AddConfigPath(".")
 	config.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+	config.SetEnvKeyReplacer(strings.NewReplacer("-", "__"))
 	config.AutomaticEnv()
 
 	// If a config file is found, read it in.
